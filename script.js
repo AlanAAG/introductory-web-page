@@ -165,4 +165,9 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
+    // --- AUTOFOCUS THANKYOU MESSAGE ---
+    const thankYouMessage = document.getElementById('thankyou-message');
+    if (thankYouMessage) {
+        thankYouMessage.focus();
+    }
 });
