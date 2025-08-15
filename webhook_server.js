@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 const { Client } = require('@notionhq/client');
 
 const app = express();
@@ -10,15 +11,15 @@ const port = process.env.PORT || 3000;
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const databaseId = process.env.NOTION_DATABASE_ID;
 
+app.use(cors());
 app.use(bodyParser.json());
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
-  // Handle Notion webhook verification
-  if (req.body && req.body.verification_token) {
-    console.log('Received Notion verification token. Please paste this into your Notion integration settings:');
-    console.log(req.body.verification_token);
-    return res.status(200).send('Verification request received and token logged.');
+  // Handle Notion webhook verification by responding to the challenge
+  if (req.headers['x-notion-webhook-challenge']) {
+    res.set('x-notion-webhook-challenge', req.headers['x-notion-webhook-challenge']);
+    return res.status(200).send();
   }
 
   const { name, email, message } = req.body;
