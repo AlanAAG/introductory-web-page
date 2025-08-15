@@ -14,32 +14,44 @@ const databaseId = process.env.NOTION_DATABASE_ID;
 // Use CORS for all routes
 app.use(cors());
 
-// --- MODIFIED WEBHOOK ENDPOINT ---
-// We use bodyParser.json() inside the route to control its execution order.
-app.post('/webhook', bodyParser.json(), async (req, res) => {
+// Add raw body parser for webhook verification
+app.use('/webhook', express.raw({ type: 'application/json' }));
+
+// --- FIXED WEBHOOK ENDPOINT ---
+app.post('/webhook', async (req, res) => {
   console.log('Webhook received a POST request.');
   console.log('Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('Body:', JSON.stringify(req.body, null, 2));
-
-  // 1. Immediately handle Notion's verification challenge
-  if (req.headers['x-notion-webhook-challenge']) {
-    console.log('Received Notion webhook challenge.');
-    // Respond directly to the challenge
-    res.set('x-notion-webhook-challenge', req.headers['x-notion-webhook-challenge']);
-    return res.status(200).send();
+  
+  // 1. Handle Notion's verification challenge FIRST
+  const challenge = req.headers['x-notion-webhook-challenge'];
+  if (challenge) {
+    console.log('Received Notion webhook challenge:', challenge);
+    // Return the challenge in the response body as plain text
+    return res.status(200).type('text/plain').send(challenge);
   }
 
-  // 2. Process form submissions from FormSubmit.co
-  const { name, email, message } = req.body;
+  // 2. Parse JSON body for form submissions
+  let body;
+  try {
+    body = JSON.parse(req.body.toString());
+    console.log('Parsed body:', JSON.stringify(body, null, 2));
+  } catch (error) {
+    console.error('Error parsing JSON body:', error);
+    return res.status(400).send('Invalid JSON body');
+  }
+
+  // 3. Process form submissions from FormSubmit.co
+  const { name, email, message } = body;
 
   if (!name || !email || !message) {
     console.error('Validation Error: Missing required fields.');
+    console.log('Received data:', { name, email, message });
     return res.status(400).send('Missing required fields: name, email, message');
   }
 
   try {
     console.log('Attempting to create Notion page...');
-    await notion.pages.create({
+    const response = await notion.pages.create({
       parent: { database_id: databaseId },
       properties: {
         'Name': { title: [{ text: { content: name } }] },
@@ -48,19 +60,31 @@ app.post('/webhook', bodyParser.json(), async (req, res) => {
         'Date Submitted': { date: { start: new Date().toISOString() } },
       },
     });
-    console.log('Successfully added to Notion.');
+    console.log('Successfully added to Notion:', response.id);
     res.status(200).send('Form data successfully submitted to Notion.');
   } catch (error) {
-    console.error('Error submitting to Notion:', error);
+    console.error('Error submitting to Notion:', error.message);
+    console.error('Full error:', error);
     res.status(500).send('Failed to submit form data to Notion.');
   }
 });
 
-// Health check endpoint remains the same
+// Health check endpoint
 app.get('/', (req, res) => {
   res.status(200).send('Server is running and healthy.');
 });
 
+// Additional health check for webhook endpoint
+app.get('/webhook', (req, res) => {
+  res.status(200).json({ 
+    status: 'Webhook endpoint is active',
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log('Environment check:');
+  console.log('- NOTION_API_KEY:', process.env.NOTION_API_KEY ? '✓ Set' : '✗ Missing');
+  console.log('- NOTION_DATABASE_ID:', process.env.NOTION_DATABASE_ID ? '✓ Set' : '✗ Missing');
 });
