@@ -1,0 +1,16 @@
+{
+  "name": "notion-form-webhook",
+  "version": "1.0.0",
+  "description": "A webhook server to forward contact form submissions to a Notion database.",
+  "main": "webhook_server.js",
+  "scripts": {
+    "start": "node webhook_server.js"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}

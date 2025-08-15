@@ -23,3 +23,44 @@ Desktop-first design with mobile optimizations
 Collapsible hamburger menu for mobile devices
 Flexible grid systems that adapt to all screen sizes
 Optimized images and typography scaling
+
+## Webhook Server Setup
+
+This project includes a Node.js webhook server to connect the contact form to a Notion database.
+
+### Prerequisites
+
+- Node.js and npm installed
+- A Notion account and a database with the following columns:
+  - `Name` (Title)
+  - `Email` (Email)
+  - `Message` (Text)
+  - `Date Submitted` (Date)
+
+### Setup Instructions
+
+1.  **Install Dependencies:**
+    Open your terminal in the project root and run:
+    ```bash
+    npm install
+    ```
+
+2.  **Create Environment File:**
+    Create a `.env` file in the project root by copying the example file:
+    ```bash
+    cp .env.example .env
+    ```
+
+3.  **Configure Environment Variables:**
+    Open the `.env` file and replace the placeholder values with your Notion API key and database ID.
+    ```
+    NOTION_API_KEY=your_notion_api_key
+    NOTION_DATABASE_ID=your_notion_database_id
+    ```
+
+4.  **Run the Server:**
+    Start the webhook server with the following command:
+    ```bash
+    npm start
+    ```
+    The server will be running on `http://localhost:3000`.
