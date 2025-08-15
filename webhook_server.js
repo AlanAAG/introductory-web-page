@@ -9,16 +9,16 @@ const port = process.env.PORT || 3000;
 // Notion client initialization
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const databaseId = process.env.NOTION_DATABASE_ID;
-const webhookSecret = process.env.WEBHOOK_SECRET;
 
 app.use(bodyParser.json());
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const providedSecret = req.query.secret;
-
-  if (!webhookSecret || providedSecret !== webhookSecret) {
-    return res.status(401).send('Unauthorized');
+  // Handle Notion webhook verification
+  if (req.body && req.body.verification_token) {
+    console.log('Received Notion verification token. Please paste this into your Notion integration settings:');
+    console.log(req.body.verification_token);
+    return res.status(200).send('Verification request received and token logged.');
   }
 
   const { name, email, message } = req.body;
