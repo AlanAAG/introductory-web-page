@@ -14,6 +14,13 @@ app.use(bodyParser.json());
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
+  // Handle Notion webhook verification
+  if (req.body && req.body.verification_token) {
+    console.log('Received Notion verification token. Please paste this into your Notion integration settings:');
+    console.log(req.body.verification_token);
+    return res.status(200).send('Verification request received and token logged.');
+  }
+
   const { name, email, message } = req.body;
 
   if (!name || !email || !message) {
