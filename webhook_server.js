@@ -14,6 +14,11 @@ const databaseId = process.env.NOTION_DATABASE_ID;
 app.use(cors());
 app.use(bodyParser.json());
 
+// Health check endpoint for Render
+app.get('/', (req, res) => {
+  res.status(200).send('Server is running and healthy.');
+});
+
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
   // Handle Notion webhook verification by responding to the challenge
