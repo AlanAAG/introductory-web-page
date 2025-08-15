@@ -9,11 +9,18 @@ const port = process.env.PORT || 3000;
 // Notion client initialization
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const databaseId = process.env.NOTION_DATABASE_ID;
+const webhookSecret = process.env.WEBHOOK_SECRET;
 
 app.use(bodyParser.json());
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
+  const providedSecret = req.query.secret;
+
+  if (!webhookSecret || providedSecret !== webhookSecret) {
+    return res.status(401).send('Unauthorized');
+  }
+
   const { name, email, message } = req.body;
 
   if (!name || !email || !message) {

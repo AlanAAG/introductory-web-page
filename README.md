@@ -52,13 +52,32 @@ This project includes a Node.js webhook server to connect the contact form to a 
     ```
 
 3.  **Configure Environment Variables:**
-    Open the `.env` file and replace the placeholder values with your Notion API key and database ID.
+    Open the `.env` file and replace the placeholder values with your Notion API key, database ID, and a secure webhook secret.
+
+    You can generate a secure secret with the following command:
+    ```bash
+    openssl rand -base64 32
+    ```
+
+    Your `.env` file should look like this:
     ```
     NOTION_API_KEY=your_notion_api_key
     NOTION_DATABASE_ID=your_notion_database_id
+    WEBHOOK_SECRET=your_generated_secret
     ```
 
-4.  **Run the Server:**
+4.  **Update Contact Form:**
+    Open `contact.html` and update the `_webhook` input value to include your secret as a query parameter. Replace `your_webhook_url` with the actual URL of your deployed server and `your_generated_secret` with the secret you created.
+    ```html
+    <input type="hidden" name="_webhook" value="your_webhook_url?secret=your_generated_secret">
+    ```
+    For example:
+    ```html
+    <input type="hidden" name="_webhook" value="https://notion-forms-agent.onrender.com/webhook?secret=your_generated_secret">
+    ```
+
+
+5.  **Run the Server:**
     Start the webhook server with the following command:
     ```bash
     npm start
