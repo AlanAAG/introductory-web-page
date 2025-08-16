@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const { Client } = require('@notionhq/client');
 const url = require('url');
+const EmailService = require('./emailService');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -11,6 +12,9 @@ const port = process.env.PORT || 3000;
 // Notion client initialization
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const databaseId = process.env.NOTION_DATABASE_ID;
+
+// Email service initialization
+const emailService = new EmailService();
 
 // Use CORS for all routes
 app.use(cors());
@@ -169,11 +173,25 @@ app.post('/webhook', async (req, res) => {
       },
     });
     console.log('Successfully added to Notion:', response.id);
+
+    // Send automated thank-you email
+    let emailResult = null;
+    try {
+      console.log('Attempting to send thank-you email...');
+      emailResult = await emailService.sendThankYouEmail(email, name, message);
+      console.log('Thank-you email sent successfully:', emailResult.messageId);
+    } catch (emailError) {
+      console.error('Failed to send thank-you email (non-critical):', emailError.message);
+      // Don't fail the entire request if email fails - log and continue
+    }
+
     res.status(200).json({ 
       success: true, 
       message: 'Form data successfully submitted to Notion.', 
       notionId: response.id,
-      received_data: { name, email, message }
+      received_data: { name, email, message },
+      email_sent: emailResult ? true : false,
+      email_details: emailResult ? { messageId: emailResult.messageId } : null
     });
   } catch (error) {
     console.error('Error submitting to Notion:', error.message);
@@ -195,9 +213,51 @@ app.get('/webhook', (req, res) => {
   });
 });
 
+// Email configuration test endpoint
+app.get('/test-email', async (req, res) => {
+  try {
+    console.log('Testing email configuration...');
+    const isConfigured = await emailService.testEmailConfiguration();
+    
+    if (isConfigured) {
+      res.status(200).json({
+        status: 'Email service configured correctly',
+        timestamp: new Date().toISOString(),
+        gmail_user: process.env.GMAIL_USER ? 'Set' : 'Missing'
+      });
+    } else {
+      res.status(500).json({
+        status: 'Email service configuration failed',
+        timestamp: new Date().toISOString(),
+        gmail_user: process.env.GMAIL_USER ? 'Set' : 'Missing'
+      });
+    }
+  } catch (error) {
+    console.error('Email test endpoint error:', error.message);
+    res.status(500).json({
+      status: 'Email test failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
   console.log('Environment check:');
   console.log('- NOTION_API_KEY:', process.env.NOTION_API_KEY ? '✓ Set' : '✗ Missing');
   console.log('- NOTION_DATABASE_ID:', process.env.NOTION_DATABASE_ID ? '✓ Set' : '✗ Missing');
+  console.log('- GMAIL_USER:', process.env.GMAIL_USER ? '✓ Set' : '✗ Missing');
+  console.log('- GMAIL_CLIENT_ID:', process.env.GMAIL_CLIENT_ID ? '✓ Set' : '✗ Missing');
+  console.log('- GMAIL_CLIENT_SECRET:', process.env.GMAIL_CLIENT_SECRET ? '✓ Set' : '✗ Missing');
+  console.log('- GMAIL_REFRESH_TOKEN:', process.env.GMAIL_REFRESH_TOKEN ? '✓ Set' : '✗ Missing');
+  
+  // Initialize email service on startup
+  emailService.initialize().then((success) => {
+    if (success) {
+      console.log('📧 Email service ready for automated responses');
+    } else {
+      console.log('⚠️ Email service failed to initialize - emails will not be sent');
+    }
+  });
 });
