@@ -3,6 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { Client } = require('@notionhq/client');
+const url = require('url');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -14,34 +15,137 @@ const databaseId = process.env.NOTION_DATABASE_ID;
 // Use CORS for all routes
 app.use(cors());
 
-// Add URL-encoded parser for FormSubmit webhooks
-app.use('/webhook', express.urlencoded({ extended: true }));
+// Comprehensive middleware to capture everything from FormSubmit
+app.use('/webhook', (req, res, next) => {
+  let body = '';
+  req.setEncoding('utf8');
+  req.on('data', chunk => {
+    body += chunk;
+  });
+  req.on('end', () => {
+    req.rawBody = body;
+    
+    // Parse body based on content type
+    if (req.headers['content-type']?.includes('application/json')) {
+      try {
+        req.body = body ? JSON.parse(body) : {};
+      } catch (error) {
+        console.log('JSON parse error:', error.message);
+        req.body = {};
+      }
+    } else if (req.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
+      req.body = body ? Object.fromEntries(new URLSearchParams(body)) : {};
+    } else {
+      req.body = {};
+    }
+    
+    next();
+  });
+});
 
-// --- FIXED WEBHOOK ENDPOINT ---
+// --- COMPREHENSIVE DEBUG WEBHOOK ENDPOINT ---
 app.post('/webhook', async (req, res) => {
-  console.log('Webhook received a POST request.');
+  console.log('\n=== WEBHOOK DEBUG START ===');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Query params:', req.query);
   console.log('Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('Raw body:', req.body);
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('Content-Length:', req.headers['content-length']);
+  console.log('Raw body:', req.rawBody);
+  console.log('Raw body length:', req.rawBody?.length || 0);
+  console.log('Parsed body:', JSON.stringify(req.body, null, 2));
+  console.log('Body keys:', Object.keys(req.body || {}));
+  
+  // Parse URL for query parameters
+  const parsedUrl = url.parse(req.url, true);
+  console.log('URL query object:', parsedUrl.query);
+  
+  // Check if data is in headers (sometimes services send data this way)
+  const headerKeys = Object.keys(req.headers);
+  const formHeaders = headerKeys.filter(key => 
+    key.toLowerCase().includes('form') || 
+    key.toLowerCase().includes('data') ||
+    key.toLowerCase().includes('name') ||
+    key.toLowerCase().includes('email') ||
+    key.toLowerCase().includes('message')
+  );
+  console.log('Potential form data headers:', formHeaders.map(key => `${key}: ${req.headers[key]}`));
+  
+  console.log('=== WEBHOOK DEBUG END ===\n');
   
   // 1. Handle Notion's verification challenge FIRST (for direct Notion webhooks)
   const challenge = req.headers['x-notion-webhook-challenge'];
   if (challenge) {
     console.log('Received Notion webhook challenge:', challenge);
-    // Return the challenge in the response body as plain text
     return res.status(200).type('text/plain').send(challenge);
   }
 
-  // 2. Extract form data from FormSubmit's URL-encoded payload
-  const { name, email, message } = req.body;
+  // 2. Try to extract form data from multiple sources
+  let formData = {};
   
-  console.log('Extracted form data:', { name, email, message });
+  // Source 1: Request body
+  if (req.body && Object.keys(req.body).length > 0) {
+    formData = { ...formData, ...req.body };
+    console.log('Found data in body:', req.body);
+  }
+  
+  // Source 2: Query parameters
+  if (parsedUrl.query && Object.keys(parsedUrl.query).length > 0) {
+    formData = { ...formData, ...parsedUrl.query };
+    console.log('Found data in query params:', parsedUrl.query);
+  }
+  
+  // Source 3: Check for data in specific headers (some services encode data this way)
+  for (const headerKey of headerKeys) {
+    const value = req.headers[headerKey];
+    if (typeof value === 'string' && value.includes('=')) {
+      try {
+        const decodedParams = Object.fromEntries(new URLSearchParams(value));
+        if (decodedParams.name || decodedParams.email || decodedParams.message) {
+          formData = { ...formData, ...decodedParams };
+          console.log(`Found data in header ${headerKey}:`, decodedParams);
+        }
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+  }
+  
+  console.log('Combined form data from all sources:', formData);
+
+  let { name, email, message } = formData;
+  
+  // Try alternative field names
+  if (!name) name = formData.Name || formData.full_name || formData.fullname || formData['form[name]'];
+  if (!email) email = formData.Email || formData.email_address || formData['form[email]'];
+  if (!message) message = formData.Message || formData.msg || formData.comments || formData.comment || formData['form[message]'];
+  
+  console.log('Final extracted data:', { name, email, message });
 
   if (!name || !email || !message) {
-    console.error('Validation Error: Missing required fields.');
-    console.log('Received data:', { name, email, message });
-    return res.status(400).send('Missing required fields: name, email, message');
+    console.error('Validation Error: Missing required fields after checking all sources.');
+    
+    const debugResponse = {
+      error: 'Missing required fields: name, email, message',
+      debug_info: {
+        extracted_fields: { name, email, message },
+        body_data: req.body,
+        query_data: parsedUrl.query,
+        available_body_fields: Object.keys(req.body || {}),
+        available_query_fields: Object.keys(parsedUrl.query || {}),
+        content_type: req.headers['content-type'],
+        raw_body_preview: req.rawBody ? req.rawBody.substring(0, 200) : 'empty',
+        headers_with_potential_data: formHeaders.map(key => `${key}: ${req.headers[key]}`)
+      }
+    };
+    
+    console.log('Sending debug response:', JSON.stringify(debugResponse, null, 2));
+    return res.status(400).json(debugResponse);
   }
 
+  // If we have all required fields, proceed with Notion
   try {
     console.log('Attempting to create Notion page...');
     const response = await notion.pages.create({
@@ -54,11 +158,16 @@ app.post('/webhook', async (req, res) => {
       },
     });
     console.log('Successfully added to Notion:', response.id);
-    res.status(200).send('Form data successfully submitted to Notion.');
+    res.status(200).json({ 
+      success: true, 
+      message: 'Form data successfully submitted to Notion.', 
+      notionId: response.id,
+      received_data: { name, email, message }
+    });
   } catch (error) {
     console.error('Error submitting to Notion:', error.message);
     console.error('Full error:', error);
-    res.status(500).send('Failed to submit form data to Notion.');
+    res.status(500).json({ error: 'Failed to submit form data to Notion.', details: error.message });
   }
 });
 
@@ -67,7 +176,7 @@ app.get('/', (req, res) => {
   res.status(200).send('Server is running and healthy.');
 });
 
-// Additional health check for webhook endpoint
+// Additional health check for webhook endpoint  
 app.get('/webhook', (req, res) => {
   res.status(200).json({ 
     status: 'Webhook endpoint is active',
