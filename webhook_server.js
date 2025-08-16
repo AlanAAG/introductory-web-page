@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const { Client } = require('@notionhq/client');
 const url = require('url');
-const EmailService = require('./emailService');
+const SimpleEmailService = require('./simpleEmailService');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -14,7 +14,7 @@ const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const databaseId = process.env.NOTION_DATABASE_ID;
 
 // Email service initialization
-const emailService = new EmailService();
+const emailService = new SimpleEmailService();
 
 // Use CORS for all routes
 app.use(cors());
@@ -248,9 +248,7 @@ app.listen(port, () => {
   console.log('- NOTION_API_KEY:', process.env.NOTION_API_KEY ? '✓ Set' : '✗ Missing');
   console.log('- NOTION_DATABASE_ID:', process.env.NOTION_DATABASE_ID ? '✓ Set' : '✗ Missing');
   console.log('- GMAIL_USER:', process.env.GMAIL_USER ? '✓ Set' : '✗ Missing');
-  console.log('- GMAIL_CLIENT_ID:', process.env.GMAIL_CLIENT_ID ? '✓ Set' : '✗ Missing');
-  console.log('- GMAIL_CLIENT_SECRET:', process.env.GMAIL_CLIENT_SECRET ? '✓ Set' : '✗ Missing');
-  console.log('- GMAIL_REFRESH_TOKEN:', process.env.GMAIL_REFRESH_TOKEN ? '✓ Set' : '✗ Missing');
+  console.log('- GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '✓ Set' : '✗ Missing');
   
   // Initialize email service on startup
   emailService.initialize().then((success) => {
