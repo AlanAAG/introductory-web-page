@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
 const cors = require('cors');
 const { Client } = require('@notionhq/client');
 
@@ -14,13 +13,22 @@ const databaseId = process.env.NOTION_DATABASE_ID;
 // Use CORS for all routes
 app.use(cors());
 
+
+// Global middleware to parse URL-encoded data (for FormSubmit webhooks)
+app.use(express.urlencoded({ extended: true }));
+
+// Also add JSON parsing for other potential webhooks
+app.use(express.json());
+=======
 // Add URL-encoded parser for FormSubmit webhooks
 app.use('/webhook', express.urlencoded({ extended: true }));
+
 
 // --- FIXED WEBHOOK ENDPOINT ---
 app.post('/webhook', async (req, res) => {
   console.log('Webhook received a POST request.');
   console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Content-Type:', req.headers['content-type']);
   console.log('Raw body:', req.body);
   
   // 1. Handle Notion's verification challenge FIRST (for direct Notion webhooks)
@@ -39,6 +47,7 @@ app.post('/webhook', async (req, res) => {
   if (!name || !email || !message) {
     console.error('Validation Error: Missing required fields.');
     console.log('Received data:', { name, email, message });
+    console.log('All body keys:', Object.keys(req.body));
     return res.status(400).send('Missing required fields: name, email, message');
   }
 
@@ -65,6 +74,24 @@ app.post('/webhook', async (req, res) => {
 // Health check endpoint
 app.get('/', (req, res) => {
   res.status(200).send('Server is running and healthy.');
+});
+
+// Debug endpoint to test webhook data
+app.post('/debug', (req, res) => {
+  console.log('=== DEBUG ENDPOINT ===');
+  console.log('Method:', req.method);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('Body:', req.body);
+  console.log('Body type:', typeof req.body);
+  console.log('Body keys:', Object.keys(req.body || {}));
+  console.log('======================');
+  
+  res.status(200).json({
+    message: 'Debug data logged',
+    body: req.body,
+    contentType: req.headers['content-type']
+  });
 });
 
 // Additional health check for webhook endpoint
