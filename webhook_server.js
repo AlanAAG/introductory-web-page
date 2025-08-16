@@ -13,11 +13,16 @@ const databaseId = process.env.NOTION_DATABASE_ID;
 // Use CORS for all routes
 app.use(cors());
 
+
 // Global middleware to parse URL-encoded data (for FormSubmit webhooks)
 app.use(express.urlencoded({ extended: true }));
 
 // Also add JSON parsing for other potential webhooks
 app.use(express.json());
+=======
+// Add URL-encoded parser for FormSubmit webhooks
+app.use('/webhook', express.urlencoded({ extended: true }));
+
 
 // --- FIXED WEBHOOK ENDPOINT ---
 app.post('/webhook', async (req, res) => {
