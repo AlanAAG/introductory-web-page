@@ -89,6 +89,17 @@ app.post('/webhook', async (req, res) => {
   if (req.body && Object.keys(req.body).length > 0) {
     formData = { ...formData, ...req.body };
     console.log('Found data in body:', req.body);
+    
+    // IMPORTANT: FormSubmit sends data nested in a 'form_data' field as a JSON string
+    if (req.body.form_data && typeof req.body.form_data === 'string') {
+      try {
+        const parsedFormData = JSON.parse(req.body.form_data);
+        console.log('Parsed nested form_data:', parsedFormData);
+        formData = { ...formData, ...parsedFormData };
+      } catch (error) {
+        console.log('Error parsing form_data JSON:', error.message);
+      }
+    }
   }
   
   // Source 2: Query parameters
