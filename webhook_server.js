@@ -14,15 +14,16 @@ const databaseId = process.env.NOTION_DATABASE_ID;
 // Use CORS for all routes
 app.use(cors());
 
-// Add raw body parser for webhook verification
-app.use('/webhook', express.raw({ type: 'application/json' }));
+// Add URL-encoded parser for FormSubmit webhooks
+app.use('/webhook', express.urlencoded({ extended: true }));
 
 // --- FIXED WEBHOOK ENDPOINT ---
 app.post('/webhook', async (req, res) => {
   console.log('Webhook received a POST request.');
   console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Raw body:', req.body);
   
-  // 1. Handle Notion's verification challenge FIRST
+  // 1. Handle Notion's verification challenge FIRST (for direct Notion webhooks)
   const challenge = req.headers['x-notion-webhook-challenge'];
   if (challenge) {
     console.log('Received Notion webhook challenge:', challenge);
@@ -30,18 +31,10 @@ app.post('/webhook', async (req, res) => {
     return res.status(200).type('text/plain').send(challenge);
   }
 
-  // 2. Parse JSON body for form submissions
-  let body;
-  try {
-    body = JSON.parse(req.body.toString());
-    console.log('Parsed body:', JSON.stringify(body, null, 2));
-  } catch (error) {
-    console.error('Error parsing JSON body:', error);
-    return res.status(400).send('Invalid JSON body');
-  }
-
-  // 3. Process form submissions from FormSubmit.co
-  const { name, email, message } = body;
+  // 2. Extract form data from FormSubmit's URL-encoded payload
+  const { name, email, message } = req.body;
+  
+  console.log('Extracted form data:', { name, email, message });
 
   if (!name || !email || !message) {
     console.error('Validation Error: Missing required fields.');
