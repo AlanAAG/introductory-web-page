@@ -1,45 +1,27 @@
 const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
 
-class EmailService {
+class SimpleEmailService {
   constructor() {
-    this.oauth2Client = null;
     this.transporter = null;
     this.initialized = false;
   }
 
   async initialize() {
     try {
-      // Create OAuth2 client
-      this.oauth2Client = new google.auth.OAuth2(
-        process.env.GMAIL_CLIENT_ID,
-        process.env.GMAIL_CLIENT_SECRET,
-        'https://developers.google.com/oauthplayground' // Redirect URL
-      );
-
-      // Set refresh token
-      this.oauth2Client.setCredentials({
-        refresh_token: process.env.GMAIL_REFRESH_TOKEN
-      });
-
-      // Get access token
-      const accessToken = await this.oauth2Client.getAccessToken();
-
-      // Create transporter
+      // Create transporter using Gmail App Password (much simpler than OAuth!)
       this.transporter = nodemailer.createTransporter({
         service: 'gmail',
         auth: {
-          type: 'OAuth2',
           user: process.env.GMAIL_USER,
-          clientId: process.env.GMAIL_CLIENT_ID,
-          clientSecret: process.env.GMAIL_CLIENT_SECRET,
-          refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-          accessToken: accessToken.token,
+          pass: process.env.GMAIL_APP_PASSWORD, // This is the app password, not your regular password
         },
       });
 
+      // Test the connection
+      await this.transporter.verify();
+      
       this.initialized = true;
-      console.log('📧 Email service initialized successfully');
+      console.log('📧 Simple email service initialized successfully');
       return true;
     } catch (error) {
       console.error('❌ Failed to initialize email service:', error.message);
@@ -251,4 +233,4 @@ This email was sent automatically in response to your contact form submission.
   }
 }
 
-module.exports = EmailService;
+module.exports = SimpleEmailService;
