@@ -9,7 +9,7 @@ class SimpleEmailService {
   async initialize() {
     try {
       // Create transporter using Gmail App Password (much simpler than OAuth!)
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: process.env.GMAIL_USER,
