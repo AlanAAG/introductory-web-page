@@ -145,7 +145,7 @@ class SimpleEmailService {
         <div class="container">
             <div class="header">
                 <div class="logo">ALAN AYALA GARCÍA</div>
-                <div style="color: #666;">Software Engineer & Developer</div>
+                <div style="color: #666;">Entrepreneur & Developer</div>
             </div>
             
             <div class="greeting">
@@ -176,7 +176,7 @@ class SimpleEmailService {
             <p style="margin-top: 30px;">
                 Best regards,<br>
                 <strong>Alan Ayala García</strong><br>
-                <span style="color: #666;">Software Engineer</span>
+                <span style="color: #666;">Entrepreneur & Developer</span>
             </p>
             
             <div class="footer">
